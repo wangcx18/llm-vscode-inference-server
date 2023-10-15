@@ -29,6 +29,7 @@ async def generate(request: Request) -> Response:
     prompt = request_dict.pop("inputs")
     parameters = request_dict.pop("parameters")
     max_new_tokens = parameters.pop("max_new_tokens")
+    return_full_text = parameters.pop("return_full_text", False)
     do_sample = parameters.pop("do_sample", True)
     stream = request_dict.pop("stream", False)
     sampling_params = SamplingParams(max_tokens=max_new_tokens,
@@ -43,7 +44,8 @@ async def generate(request: Request) -> Response:
         async for request_output in results_generator:
             prompt = request_output.prompt
             text_outputs = [
-                prompt + output.text for output in request_output.outputs
+                prompt + output.text if return_full_text else output.text
+                for output in request_output.outputs
             ]
             ret = {"text": text_outputs}
             yield (json.dumps(ret) + "\0").encode("utf-8")
@@ -62,7 +64,10 @@ async def generate(request: Request) -> Response:
 
     assert final_output is not None
     prompt = final_output.prompt
-    text_outputs = [prompt + output.text for output in final_output.outputs]
+    text_outputs = [
+        prompt + output.text if return_full_text else output.text
+        for output in final_output.outputs
+    ]
     ret = {"generated_text": text_outputs[0], "status": 200}
     return JSONResponse(ret)
 
